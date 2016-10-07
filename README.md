@@ -72,8 +72,54 @@ Next, we want to override the didMove(to view: SKView) function (which we delete
 
 Let's go over each part. First, we set the background color of our frame to white, since it's a gray-ish color by default. Then we started adding our nodes.
 
-We start with the score. It's an SKLabelNode, since we want it to show some string, in this case, our score. The default font size is 32, which is a bit small, so we set it to 40.
+We start with the score. It's an SKLabelNode, since we want it to show some string, in this case, our score. The default font size is 32, which is a bit small, so we set it to 40. The we add the node to the tree, with self as the root.
 
+The ground, paddle, and ball are SKShapeNodes, which are pretty simple. Just specify the shape, size, position, and color, then add to self.
+
+The left and right arrows are SKSpriteNodes made with images found in Assets.xcassets. You can drag and drop pictures in there from Finder. We change the anchor to (0, 0) of the Sprite, and then rotate it (which makes it weird for positioning, but you can play around with these values). (We can actually keep the anchor at (0.5, 0.5) and I think that makes it easier but I'm too far into this lol).
+
+## Part 2: Game Interaction
+
+Add SKPhysicsContactDelegate to GameScene's delegates (proofread this).
+
+At the beginning of your didMove(to:), add 
+```swift
+self.physicsWorld.contactDelegate = self
+self.physicsWorld.gravity = CGVector(dx: 0, dy: -2)
+```
+This will allow you to keep track of contacts between your children, and simulate gravity.
+
+Outside of the class declaration, set up a struct that will keep track of your different objects bit masks, used for contacts and collisions, like so:
+```swift
+struct PhysicsCategory {
+    static let ground : UInt32 = 0x1 << 1
+    static let wall : UInt32 = 0x1 << 2
+    static let paddle : UInt32 = 0x1 << 3
+    static let ball : UInt32 = 0x1 << 4
+}
+```
+
+For each of nodes that should interact (so in this case, all of them including self, excluding the score SKLabelNode), set up their physicsBody like
+```swift
+[node].physicsBody = SKPhysicsBody([appropriate parameters for shape])
+[node].physicsBody?.categoryBitMask = PhysicsCategory.[appropriate value for this node specified in struct, ex: ground]
+[node].physicsBody?.collisionBitMask = Similar to categoryBitMask, but for all the nodes you want to keep track of collisions with. Can do multiple by doing BitMask | BitMask
+[node].physicsBody?.contactTestBitMask = Same, but for general contact
+[node].physicsBody?.affectedByGravity = [boolean] // self explanatory
+[node].physicsBody?.isDynamic = [boolean] // If you want this node to move when hit by other nodes
+```
+This part is really repetitive, so I'm not going to write all of it out. Here's the code for self, and try to figure the other nodes out.
+```swift
+self.physicsBody = SKPhysicsBody(edgeLoopFrom : self.frame)
+self.physicsBody?.categoryBitMask = PhysicsCategory.wall
+self.physicsBody?.collisionBitMask = PhysicsCategory.ball | PhysicsCategory.paddle
+self.physicsBody?.contactTestBitMask = PhysicsCategory.ball | PhysicsCategory.paddle
+self.physicsBody?.affectedByGravity = false
+self.physicsBody?.isDynamic = false
+```
+
+TODO:
+* touchesBegan, touchesEnded, didBegin(_ contact: SKPhysicsContact)
 
 ## Credits
 [Arrow icons](https://icons8.com/web-app/10755/Give-Way)
