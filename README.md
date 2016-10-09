@@ -207,7 +207,7 @@ func didBegin(_ contact: SKPhysicsContact) {
 
 And we're done! There's a lot of ways to expand this game, and have it not be as janky, but this should give you a foundation for most basic games :) 
 
-# Some Stuff We Didn't Cover
+## Some Stuff We Didn't Cover
 * We haven't implemented restarting the game (right now you can't interact with the game after you lose), but basically you would just need to reset the positions of your nodes, and remove the gameOver SKLabelNode. 
 * We didn't cover how to use accelerometer data since not everyone in the class has an iPhone, and it won't work on the simulator. 
 * We'll learn more about persistently storing data later in the class, so I won't cover that in this demo.
