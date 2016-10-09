@@ -4,7 +4,10 @@ Walkthrough of basic SpriteKit features through building a simple game.
 The finished code at the end of each step is available if you want to start at any part, or if you want to see exactly what was done.
 
 Here's what we're going to be building:
+
 ![gif](https://github.com/cyejia/iOS-Decal-SpriteKit-Demo/blob/master/demo.gif)
+
+The actual game will be faster. Idk how to make the gif not so laggy :(
 
 ## Part 0: Setup
 Create a new Xcode project. Select Game under Application. For Game Technology, choose SpriteKit. In GameScene.swift, delete everything within the class, and in GameScene.sks, delete helloLabel. 
