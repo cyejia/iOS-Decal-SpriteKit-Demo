@@ -3,6 +3,9 @@ Walkthrough of basic SpriteKit features through building a simple game.
 
 The finished code at the end of each step is available if you want to start at any part, or if you want to see exactly what was done.
 
+Here's what we're going to be building:
+![gif](https://raw.githubusercontent.com/cyejia/iOS-Decal-SpriteKit-Demo/master/demo.gif)
+
 ## Part 0: Setup
 Create a new Xcode project. Select Game under Application. For Game Technology, choose SpriteKit. In GameScene.swift, delete everything within the class, and in GameScene.sks, delete helloLabel. 
 
@@ -80,16 +83,21 @@ The left and right arrows are SKSpriteNodes made with images found in Assets.xca
 
 ## Part 2: Game Interaction
 
-Add SKPhysicsContactDelegate to GameScene's delegates (proofread this).
+Let's add a variable to keep track of our game state.
+```swift
+var gameOver = false
+```
 
-At the beginning of your didMove(to:), add 
+Then add SKPhysicsContactDelegate to GameScene's delegates.
+
+At the beginning of our didMove(to:), add 
 ```swift
 self.physicsWorld.contactDelegate = self
 self.physicsWorld.gravity = CGVector(dx: 0, dy: -2)
 ```
-This will allow you to keep track of contacts between your children, and simulate gravity.
+This will allow us to keep track of contacts between nodes, and simulate gravity.
 
-Outside of the class declaration, set up a struct that will keep track of your different objects bit masks, used for contacts and collisions, like so:
+Outside of the class declaration, set up a struct that will keep track of our different objects bit masks, used for contacts and collisions, like so:
 ```swift
 struct PhysicsCategory {
     static let ground : UInt32 = 0x1 << 1
@@ -103,23 +111,103 @@ For each of nodes that should interact (so in this case, all of them including s
 ```swift
 [node].physicsBody = SKPhysicsBody([appropriate parameters for shape])
 [node].physicsBody?.categoryBitMask = PhysicsCategory.[appropriate value for this node specified in struct, ex: ground]
-[node].physicsBody?.collisionBitMask = Similar to categoryBitMask, but for all the nodes you want to keep track of collisions with. Can do multiple by doing BitMask | BitMask
-[node].physicsBody?.contactTestBitMask = Same, but for general contact
+[node].physicsBody?.collisionBitMask = PhysicsCategory.[mask specified in the struct] // Similar to categoryBitMask, but for all the nodes we want to keep track of collisions with. Can do multiple by doing BitMask | BitMask
+[node].physicsBody?.contactTestBitMask = PhysicsCategory.[mask specified in the struct] // Same, but for general contact
 [node].physicsBody?.affectedByGravity = [boolean] // self explanatory
-[node].physicsBody?.isDynamic = [boolean] // If you want this node to move when hit by other nodes
+[node].physicsBody?.isDynamic = [boolean] // If we want this node to move when hit by other nodes
 ```
 This part is really repetitive, so I'm not going to write all of it out. Here's the code for self, and try to figure the other nodes out.
 ```swift
-self.physicsBody = SKPhysicsBody(edgeLoopFrom : self.frame)
+self.physicsBody = SKPhysicsBody(edgeLoopFrom : self.frame) // Creates a border around the frame that other nodes can interact with
 self.physicsBody?.categoryBitMask = PhysicsCategory.wall
-self.physicsBody?.collisionBitMask = PhysicsCategory.ball | PhysicsCategory.paddle
-self.physicsBody?.contactTestBitMask = PhysicsCategory.ball | PhysicsCategory.paddle
+self.physicsBody?.collisionBitMask = PhysicsCategory.ball // We don't want the ball to go off screen
+self.physicsBody?.contactTestBitMask = PhysicsCategory.ball
 self.physicsBody?.affectedByGravity = false
-self.physicsBody?.isDynamic = false
+self.physicsBody?.isDynamic = false // Don't want the frame to move around when hit by the ball
 ```
 
-TODO:
-* touchesBegan, touchesEnded, didBegin(_ contact: SKPhysicsContact)
+Next we're going to set up our user interaction. Since we're working with the simulator, we're just going to focus on touch events. We want the paddle to move left or right while we're pressing the arrows. The function touchesBegan gets called when a touch event happens (i.e. tap, press, swipe), so we're going to override its contents, but we only want to do so if the game is not over.
+```swift
+override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    // Called when a touch begins
+    if (!gameOver) {
+        let touch = touches.first! as UITouch 
+        // Since we don't care if the user moves where they touched
+        let location = touch.location(in: self) 
+        // Check where the user pressed
+        if (rightArrow.contains(location)) { 
+            // If the user pressed the right arrow
+            paddle.run(SKAction.moveBy(x: 1500, y: 0, duration: 10)) 
+            // Move the paddle to the right. This line is janky btw, but 
+            // it'll do for the demo
+        } else if (leftArrow.contains(location)) {
+            paddle.run(SKAction.moveBy(x: -1500, y: 0, duration: 10))
+        }
+    }
+}
+```
+
+Similarly for touchesEnded, we want the paddle to stop.
+```swift
+override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+    paddle.removeAllActions() 
+    // Removes any SKActions paddle currently has. For our game, should only 
+    // be one moveBy action at a time
+}
+```
+
+Finally, we want to handle contact events between our nodes. This is handled in  didBegin(_ contact: SKPhysicsContact). Let's go over our contact events
+1. If the ball touches the paddle and the game isn't over, we want it to bounce back up, and we want our score to increment
+2. If the ball touches the border and the game isn't over, we want it to bounce away from the border
+3. If the ball touches the ground, we want the game to end, and to display a game over label
+
+```swift
+func didBegin(_ contact: SKPhysicsContact) {
+    if (!self.gameOver) { 
+        let firstObject = contact.bodyA // contact keeps track of the two objects that touched
+        let secondObject = contact.bodyB
+        
+        // We don't know which object is bodyA or bodyB, so we have to check 
+        // both possibilities for each of our tests. We check using 
+        // categoryBitMasks, which we defined earlier in our struct.
+        if (firstObject.categoryBitMask == PhysicsCategory.ball && secondObject.categoryBitMask == PhysicsCategory.paddle ||
+            secondObject.categoryBitMask == PhysicsCategory.ball && firstObject.categoryBitMask == PhysicsCategory.paddle) {
+            // If the ball and paddle touch
+            let rand = Int(arc4random_uniform(100)) - 50
+            ball.physicsBody?.velocity = CGVector(dx: rand * 2, dy: 500) 
+            // Change the velocity of the ball. We're moving it randomly in 
+            // the x-direction, but you can add more logic to have it depend
+            // on where it touched the paddle, or other things
+            score.text = String(Int(score.text!)! + 1) 
+            // Increment our score label
+        } else if (firstObject.categoryBitMask == PhysicsCategory.wall && secondObject.categoryBitMask == PhysicsCategory.ball || secondObject.categoryBitMask == PhysicsCategory.wall && firstObject.categoryBitMask == PhysicsCategory.ball) {
+            // If the ball hits a wall
+            ball.physicsBody?.velocity = CGVector(dx: -1 * (ball.physicsBody?.velocity.dx)!, dy: (ball.physicsBody?.velocity.dy)!)
+            // Reflect the ball off the wall in the x-direction, keep its
+            // velocity in the y-direction
+        } else if (firstObject.categoryBitMask == PhysicsCategory.ground && secondObject.categoryBitMask == PhysicsCategory.ball || secondObject.categoryBitMask == PhysicsCategory.ground && firstObject.categoryBitMask == PhysicsCategory.ball) {
+            // If the ball hits the ground
+            ball.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
+            // Stop the ball
+            let gameOver = SKLabelNode(text: "Game Over")
+            gameOver.fontSize = 72
+            gameOver.fontColor = UIColor.red
+            gameOver.position = CGPoint(x: self.frame.width/2, y: self.frame.height/2)
+            self.addChild(gameOver)
+            // Create a gameOver SKLabelNode, display it
+            self.gameOver = true
+            // Set our class variable gameOver to true
+        }
+    }
+}
+```
+
+And we're done! There's a lot of ways to expand this game, and have it not be as janky, but this should give you a foundation for most basic games :) 
+
+# Some Stuff We Didn't Cover
+* We haven't implemented restarting the game (right now you can't interact with the game after you lose), but basically you would just need to reset the positions of your nodes, and remove the gameOver SKLabelNode. 
+* We didn't cover how to use accelerometer data since not everyone in the class has an iPhone, and it won't work on the simulator. 
+* We'll learn more about persistently storing data later in the class, so I won't cover that in this demo.
 
 ## Credits
 [Arrow icons](https://icons8.com/web-app/10755/Give-Way)
